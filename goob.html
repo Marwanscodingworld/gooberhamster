@@ -4,7 +4,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flying Hamster Retro Game</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        #initialScreen, #loadingScreen, #shopScreen, #winScreen, #hud {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            text-align: center;
+        }
+
+        #initialScreen, #loadingScreen, #shopScreen, #winScreen {
+            background-color: #000;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #initialText, #loadingText {
+            font-size: 24px;
+            color: yellow;
+            animation: glow 1s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                text-shadow: 0 0 5px yellow, 0 0 10px yellow, 0 0 15px yellow, 0 0 20px yellow;
+            }
+            50% {
+                text-shadow: 0 0 10px yellow, 0 0 20px yellow, 0 0 30px yellow, 0 0 40px yellow;
+            }
+        }
+
+        #shopScreen.hidden, #winScreen.hidden {
+            display: none;
+        }
+
+        #hud {
+            top: 10px;
+            left: 10px;
+            transform: translate(0, 0);
+            text-align: left;
+            display: none;
+        }
+
+        #hud div {
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            border: 3px solid #fff;
+            image-rendering: pixelated;
+        }
+    </style>
 </head>
 <body>
     <div id="initialScreen">
@@ -30,342 +96,276 @@
         <button id="playAgain">Play Again</button>
     </div>
     <canvas id="gameCanvas"></canvas>
-    <script src="script.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const initialScreen = document.getElementById('initialScreen');
+        const loadingScreen = document.getElementById('loadingScreen');
+        const loadingText = document.getElementById('loadingText');
+        const hud = document.getElementById('hud');
+        const healthDisplay = document.getElementById('health');
+        const speedDisplay = document.getElementById('speed');
+        const coinsDisplay = document.querySelectorAll('#coins');
+        const shopScreen = document.getElementById('shopScreen');
+        const buyHealthButton = document.getElementById('buyHealth');
+        const buySpeedButton = document.getElementById('buySpeed');
+        const restartGameButton = document.getElementById('restartGame');
+        const winScreen = document.getElementById('winScreen');
+        const playAgainButton = document.getElementById('playAgain');
+
+        const assetsImage = new Image();
+        assetsImage.src = 'assets_image.png'; // Ensure this is the correct path
+
+        let imagesLoaded = 0;
+        const totalImages = 1;
+        assetsImage.onload = () => {
+            imagesLoaded++;
+            if (imagesLoaded === totalImages) {
+                loadingScreen.style.display = 'none';
+                initialScreen.style.display = 'flex';
+            }
+        };
+
+        let backgroundIndex = 0;
+        const stages = [
+            { name: 'City', sx: 0, sy: 256, sw: 256, sh: 128 },
+            { name: 'Countryside', sx: 256, sy: 256, sw: 256, sh: 128 },
+            { name: 'Space', sx: 512, sy: 256, sw: 256, sh: 128 },
+            { name: 'Mars', sx: 0, sy: 384, sw: 256, sh: 128 },
+            { name: 'Heaven', sx: 256, sy: 384, sw: 256, sh: 128 }
+        ];
+
+        let hamster = {
+            sx: 0, sy: 0, sw: 64, sh: 64, // Idle hamster
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 64,
+            height: 64,
+            health: 100,
+            speed: 5,
+            coins: 0,
+            direction: 'idle',
+            maxHealthPurchases: 5,
+            maxSpeedPurchases: 5,
+            healthPurchases: 0,
+            speedPurchases: 0
+        };
+
+        let gameRunning = false;
+        let levelStartTime = Date.now();
+
+        function changeBackground() {
+            backgroundIndex++;
+            if (backgroundIndex >= stages.length) {
+                gameWin();
+                return;
+            }
+            showStageLoadingScreen();
+        }
+
+        function showStageLoadingScreen() {
+            gameRunning = false;
+            loadingText.textContent = `Stage: 0${backgroundIndex + 1} ${stages[backgroundIndex].name}`;
+            loadingScreen.style.display = 'flex';
+
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                gameRunning = true;
+                levelStartTime = Date.now();
+                draw();
+            }, 5000);
+        }
+
+        function draw() {
+            if (gameRunning) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const bg = stages[backgroundIndex];
+                ctx.drawImage(assetsImage, bg.sx, bg.sy, bg.sw, bg.sh, 0, 0, canvas.width, canvas.height);
+                ctx.drawImage(assetsImage, hamster.sx, hamster.sy, hamster.sw, hamster.sh, hamster.x, hamster.y, hamster.width, hamster.height);
+
+                if (Date.now() - levelStartTime > 12000 / hamster.speed * 5) {
+                    levelStartTime = Date.now();
+                    changeBackground();
+                }
+
+                requestAnimationFrame(draw);
+            }
+        }
+
+        function moveHamster(event) {
+            switch (event.key) {
+                case 'ArrowUp':
+                    hamster.y -= hamster.speed;
+                    hamster.sx = 64; hamster.sy = 0; // Moving up hamster
+                    hamster.direction = 'up';
+                    break;
+                case 'ArrowDown':
+                    hamster.y += hamster.speed;
+                    hamster.sx = 128; hamster.sy = 0; // Moving down hamster
+                    hamster.direction = 'down';
+                    break;
+                case 'ArrowLeft':
+                    hamster.x -= hamster.speed;
+                    break;
+                case 'ArrowRight':
+                    hamster.x += hamster.speed;
+                    break;
+            }
+        }
+
+        function stopHamster() {
+            hamster.sx = 0; hamster.sy = 0; // Idle hamster
+            hamster.direction = 'idle';
+        }
+
+        function initGame() {
+            gameRunning = true;
+            levelStartTime = Date.now();
+            hud.style.display = 'block';
+            updateHUD();
+            draw();
+            window.addEventListener('keydown', moveHamster);
+            window.addEventListener('keyup', stopHamster);
+            canvas.addEventListener('click', changeBackground);
+        }
+
+        function updateHUD() {
+            healthDisplay.textContent = `Health: ${hamster.health}`;
+            speedDisplay.textContent = `Speed: ${hamster.speed}`;
+            coinsDisplay.forEach(el => el.textContent = `Coins: ${hamster.coins}`);
+        }
+
+        function updateShopScreen() {
+            updateHUD();
+
+            if (hamster.healthPurchases >= hamster.maxHealthPurchases) {
+                buyHealthButton.textContent = 'Health Maxed';
+                buyHealthButton.disabled = true;
+            } else {
+                buyHealthButton.textContent = 'Buy Health (10 coins)';
+                buyHealthButton.disabled = false;
+            }
+
+            if (hamster.speedPurchases >= hamster.maxSpeedPurchases) {
+                buySpeedButton.textContent = 'Speed Maxed';
+                buySpeedButton.disabled = true;
+            } else {
+                buySpeedButton.textContent = 'Buy Speed (20 coins)';
+                buySpeedButton.disabled = false;
+            }
+        }
+
+        function buyHealth() {
+            if (hamster.coins >= 10 && hamster.healthPurchases < hamster.maxHealthPurchases) {
+                hamster.health += 20;
+                hamster.coins -= 10;
+                hamster.healthPurchases++;
+                updateShopScreen();
+            }
+        }
+
+        function buySpeed() {
+            if (hamster.coins >= 20 && hamster.speedPurchases < hamster.maxSpeedPurchases) {
+                hamster.speed += 1;
+                hamster.coins -= 20;
+                hamster.speedPurchases++;
+                updateShopScreen();
+            }
+        }
+
+        function blackoutEffect() {
+            const tileSize = 50;
+            const tilesX = Math.ceil(canvas.width / tileSize);
+            const tilesY = Math.ceil(canvas.height / tileSize);
+            let currentStep = 0;
+
+            function drawBlackoutStep() {
+                if (currentStep < tilesX * tilesY) {
+                    for (let i = 0; i < currentStep; i++) {
+                        const x = (i % tilesX) * tileSize;
+                        const y = Math.floor(i / tilesX) * tileSize;
+                        ctx.fillStyle = 'black';
+                        ctx.fillRect(x, y, tileSize, tileSize);
+                    }
+                    currentStep++;
+                    requestAnimationFrame(drawBlackoutStep);
+                } else {
+                    showGameOver();
+                }
+            }
+
+            drawBlackoutStep();
+        }
+
+        function showGameOver() {
+            ctx.fillStyle = 'red';
+            ctx.font = '50px "Press Start 2P"';
+            ctx.textAlign = 'center';
+            ctx.fillText('You Died', canvas.width / 2, canvas.height / 2);
+            setTimeout(() => {
+                shopScreen.classList.remove('hidden');
+                updateShopScreen();
+            }, 2000);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            window.removeEventListener('keydown', moveHamster);
+            window.removeEventListener('keyup', stopHamster);
+            canvas.removeEventListener('click', changeBackground);
+            blackoutEffect();
+        }
+
+        function gameWin() {
+            gameRunning = false;
+            window.removeEventListener('keydown', moveHamster);
+            window.removeEventListener('keyup', stopHamster);
+            canvas.removeEventListener('click', changeBackground);
+            winScreen.classList.remove('hidden');
+        }
+
+        buyHealthButton.addEventListener('click', buyHealth);
+        buySpeedButton.addEventListener('click', buySpeed);
+        restartGameButton.addEventListener('click', () => {
+            hamster.health = 100;
+            hamster.speed = 5;
+            hamster.coins = 0;
+            hamster.healthPurchases = 0;
+            hamster.speedPurchases = 0;
+            shopScreen.classList.add('hidden');
+            hud.style.display = 'none';
+            initialScreen.style.display = 'flex';
+            updateShopScreen();
+        });
+
+        playAgainButton.addEventListener('click', () => {
+            hamster.health = 100;
+            hamster.speed = 5;
+            hamster.coins = 0;
+            hamster.healthPurchases = 0;
+            hamster.speedPurchases = 0;
+            winScreen.classList.add('hidden');
+            hud.style.display = 'none';
+            initialScreen.style.display = 'flex';
+            updateShopScreen();
+        });
+
+        window.addEventListener('keydown', startGame);
+
+        function startGame() {
+            initialScreen.style.display = 'none';
+            window.removeEventListener('keydown', startGame);
+            loadingScreen.style.display = 'flex';
+            loadingText.textContent = 'Loading...';
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                initGame();
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-body {
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: #000;
-    font-family: 'Press Start 2P', cursive;
-}
-
-#initialScreen, #loadingScreen, #shopScreen, #winScreen, #hud {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #fff;
-    text-align: center;
-}
-
-#initialScreen, #loadingScreen, #shopScreen, #winScreen {
-    background-color: #000;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-#initialText, #loadingText {
-    font-size: 24px;
-    color: yellow;
-    animation: glow 1s infinite;
-}
-
-@keyframes glow {
-    0%, 100% {
-        text-shadow: 0 0 5px yellow, 0 0 10px yellow, 0 0 15px yellow, 0 0 20px yellow;
-    }
-    50% {
-        text-shadow: 0 0 10px yellow, 0 0 20px yellow, 0 0 30px yellow, 0 0 40px yellow;
-    }
-}
-
-#shopScreen.hidden, #winScreen.hidden {
-    display: none;
-}
-
-#hud {
-    top: 10px;
-    left: 10px;
-    transform: translate(0, 0);
-    text-align: left;
-    display: none;
-}
-
-#hud div {
-    margin-bottom: 10px;
-}
-
-canvas {
-    border: 3px solid #fff;
-    image-rendering: pixelated;
-}
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const initialScreen = document.getElementById('initialScreen');
-const loadingScreen = document.getElementById('loadingScreen');
-const loadingText = document.getElementById('loadingText');
-const hud = document.getElementById('hud');
-const healthDisplay = document.getElementById('health');
-const speedDisplay = document.getElementById('speed');
-const coinsDisplay = document.querySelectorAll('#coins');
-const shopScreen = document.getElementById('shopScreen');
-const buyHealthButton = document.getElementById('buyHealth');
-const buySpeedButton = document.getElementById('buySpeed');
-const restartGameButton = document.getElementById('restartGame');
-const winScreen = document.getElementById('winScreen');
-const playAgainButton = document.getElementById('playAgain');
-
-const assetsImage = new Image();
-assetsImage.src = 'assets_image.png'; // Ensure this is the correct path
-
-let imagesLoaded = 0;
-const totalImages = 1;
-assetsImage.onload = () => {
-    imagesLoaded++;
-    if (imagesLoaded === totalImages) {
-        loadingScreen.style.display = 'none';
-        initialScreen.style.display = 'flex';
-    }
-};
-
-let backgroundIndex = 0;
-const stages = [
-    { name: 'City', sx: 0, sy: 256, sw: 256, sh: 128 },
-    { name: 'Countryside', sx: 256, sy: 256, sw: 256, sh: 128 },
-    { name: 'Space', sx: 512, sy: 256, sw: 256, sh: 128 },
-    { name: 'Mars', sx: 0, sy: 384, sw: 256, sh: 128 },
-    { name: 'Heaven', sx: 256, sy: 384, sw: 256, sh: 128 }
-];
-
-let hamster = {
-    sx: 0, sy: 0, sw: 64, sh: 64, // Idle hamster
-    x: canvas.width / 2,
-    y: canvas.height / 2,
-    width: 64,
-    height: 64,
-    health: 100,
-    speed: 5,
-    coins: 0,
-    direction: 'idle',
-    maxHealthPurchases: 5,
-    maxSpeedPurchases: 5,
-    healthPurchases: 0,
-    speedPurchases: 0
-};
-
-let gameRunning = false;
-let levelStartTime = Date.now();
-
-function changeBackground() {
-    backgroundIndex++;
-    if (backgroundIndex >= stages.length) {
-        gameWin();
-        return;
-    }
-    showStageLoadingScreen();
-}
-
-function showStageLoadingScreen() {
-    gameRunning = false;
-    loadingText.textContent = `Stage: 0${backgroundIndex + 1} ${stages[backgroundIndex].name}`;
-    loadingScreen.style.display = 'flex';
-
-    setTimeout(() => {
-        loadingScreen.style.display = 'none';
-        gameRunning = true;
-        levelStartTime = Date.now();
-        draw();
-    }, 5000);
-}
-
-function draw() {
-    if (gameRunning) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const bg = stages[backgroundIndex];
-        ctx.drawImage(assetsImage, bg.sx, bg.sy, bg.sw, bg.sh, 0, 0, canvas.width, canvas.height);
-        ctx.drawImage(assetsImage, hamster.sx, hamster.sy, hamster.sw, hamster.sh, hamster.x, hamster.y, hamster.width, hamster.height);
-
-        if (Date.now() - levelStartTime > 12000 / hamster.speed * 5) {
-            levelStartTime = Date.now();
-            changeBackground();
-        }
-
-        requestAnimationFrame(draw);
-    }
-}
-
-function moveHamster(event) {
-    switch (event.key) {
-        case 'ArrowUp':
-            hamster.y -= hamster.speed;
-            hamster.sx = 64; hamster.sy = 0; // Moving up hamster
-            hamster.direction = 'up';
-            break;
-        case 'ArrowDown':
-            hamster.y += hamster.speed;
-            hamster.sx = 128; hamster.sy = 0; // Moving down hamster
-            hamster.direction = 'down';
-            break;
-        case 'ArrowLeft':
-            hamster.x -= hamster.speed;
-            break;
-        case 'ArrowRight':
-            hamster.x += hamster.speed;
-            break;
-    }
-}
-
-function stopHamster() {
-    hamster.sx = 0; hamster.sy = 0; // Idle hamster
-    hamster.direction = 'idle';
-}
-
-function initGame() {
-    gameRunning = true;
-    levelStartTime = Date.now();
-    hud.style.display = 'block';
-    updateHUD();
-    draw();
-    window.addEventListener('keydown', moveHamster);
-    window.addEventListener('keyup', stopHamster);
-    canvas.addEventListener('click', changeBackground);
-}
-
-function updateHUD() {
-    healthDisplay.textContent = `Health: ${hamster.health}`;
-    speedDisplay.textContent = `Speed: ${hamster.speed}`;
-    coinsDisplay.forEach(el => el.textContent = `Coins: ${hamster.coins}`);
-}
-
-function updateShopScreen() {
-    updateHUD();
-
-    if (hamster.healthPurchases >= hamster.maxHealthPurchases) {
-        buyHealthButton.textContent = 'Health Maxed';
-        buyHealthButton.disabled = true;
-    } else {
-        buyHealthButton.textContent = 'Buy Health (10 coins)';
-        buyHealthButton.disabled = false;
-    }
-
-    if (hamster.speedPurchases >= hamster.maxSpeedPurchases) {
-        buySpeedButton.textContent = 'Speed Maxed';
-        buySpeedButton.disabled = true;
-    } else {
-        buySpeedButton.textContent = 'Buy Speed (20 coins)';
-        buySpeedButton.disabled = false;
-    }
-}
-
-function buyHealth() {
-    if (hamster.coins >= 10 && hamster.healthPurchases < hamster.maxHealthPurchases) {
-        hamster.health += 20;
-        hamster.coins -= 10;
-        hamster.healthPurchases++;
-        updateShopScreen();
-    }
-}
-
-function buySpeed() {
-    if (hamster.coins >= 20 && hamster.speedPurchases < hamster.maxSpeedPurchases) {
-        hamster.speed += 1;
-        hamster.coins -= 20;
-        hamster.speedPurchases++;
-        updateShopScreen();
-    }
-}
-
-function blackoutEffect() {
-    const tileSize = 50;
-    const tilesX = Math.ceil(canvas.width / tileSize);
-    const tilesY = Math.ceil(canvas.height / tileSize);
-    let currentStep = 0;
-
-    function drawBlackoutStep() {
-        if (currentStep < tilesX * tilesY) {
-            for (let i = 0; i < currentStep; i++) {
-                const x = (i % tilesX) * tileSize;
-                const y = Math.floor(i / tilesX) * tileSize;
-                ctx.fillStyle = 'black';
-                ctx.fillRect(x, y, tileSize, tileSize);
-            }
-            currentStep++;
-            requestAnimationFrame(drawBlackoutStep);
-        } else {
-            showGameOver();
-        }
-    }
-
-    drawBlackoutStep();
-}
-
-function showGameOver() {
-    ctx.fillStyle = 'red';
-    ctx.font = '50px "Press Start 2P"';
-    ctx.textAlign = 'center';
-    ctx.fillText('You Died', canvas.width / 2, canvas.height / 2);
-    setTimeout(() => {
-        shopScreen.classList.remove('hidden');
-        updateShopScreen();
-    }, 2000);
-}
-
-function gameOver() {
-    gameRunning = false;
-    window.removeEventListener('keydown', moveHamster);
-    window.removeEventListener('keyup', stopHamster);
-    canvas.removeEventListener('click', changeBackground);
-    blackoutEffect();
-}
-
-function gameWin() {
-    gameRunning = false;
-    window.removeEventListener('keydown', moveHamster);
-    window.removeEventListener('keyup', stopHamster);
-    canvas.removeEventListener('click', changeBackground);
-    winScreen.classList.remove('hidden');
-}
-
-buyHealthButton.addEventListener('click', buyHealth);
-buySpeedButton.addEventListener('click', buySpeed);
-restartGameButton.addEventListener('click', () => {
-    hamster.health = 100;
-    hamster.speed = 5;
-    hamster.coins = 0;
-    hamster.healthPurchases = 0;
-    hamster.speedPurchases = 0;
-    shopScreen.classList.add('hidden');
-    hud.style.display = 'none';
-    initialScreen.style.display = 'flex';
-    updateShopScreen();
-});
-
-playAgainButton.addEventListener('click', () => {
-    hamster.health = 100;
-    hamster.speed = 5;
-    hamster.coins = 0;
-    hamster.healthPurchases = 0;
-    hamster.speedPurchases = 0;
-    winScreen.classList.add('hidden');
-    hud.style.display = 'none';
-    initialScreen.style.display = 'flex';
-    updateShopScreen();
-});
-
-window.addEventListener('keydown', startGame);
-
-function startGame() {
-    initialScreen.style.display = 'none';
-    window.removeEventListener('keydown', startGame);
-    loadingScreen.style.display = 'flex';
-    loadingText.textContent = 'Loading...';
-    setTimeout(() => {
-        loadingScreen.style.display = 'none';
-        initGame();
-    }, 5000);
-}
-<script>

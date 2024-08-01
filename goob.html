@@ -224,7 +224,9 @@
         function draw() {
             if (gameRunning) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+                if(bgImage instanceof HTMLImageElement && bgImage.complete) {
+                    ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+                }
 
                 if (Date.now() - levelStartTime > 36000 / hamster.speed * 5) {
                     levelStartTime = Date.now();
@@ -240,7 +242,9 @@
                     hamster.jumpsLeft = hamster.maxJumps;
                 }
 
-                ctx.drawImage(hamster.img, hamster.x, hamster.y, hamster.width, hamster.height);
+                if(hamster.img instanceof HTMLImageElement && hamster.img.complete) {
+                    ctx.drawImage(hamster.img, hamster.x, hamster.y, hamster.width, hamster.height);
+                }
                 applyVibration();
 
                 requestAnimationFrame(draw);
